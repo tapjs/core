@@ -5,14 +5,27 @@
   "author": "Isaac Z. Schlueter <i@izs.me> (https://blog.izs.me)",
   "main": "./dist/cjs/index.js",
   "module": "./dist/mjs/index.js",
+  "types": "./dist/mjs/index.js",
   "exports": {
     ".": {
-      "import": "./dist/mjs/index.js",
-      "require": "./dist/cjs/index.js"
+      "import": {
+        "types": "./dist/mjs/index.d.ts",
+        "default": "./dist/mjs/index.js"
+      },
+      "require": {
+        "types": "./dist/cjs/index.d.ts",
+        "default": "./dist/cjs/index.js"
+      }
     },
-    "./plugin-base": {
-      "import": "./dist/mjs/plugin-base.js",
-      "require": "./dist/cjs/plugin-base.js"
+    "./test-base": {
+      "import": {
+        "types": "./dist/mjs/test-base.d.ts",
+        "default": "./dist/mjs/test-base.js"
+      },
+      "require": {
+        "types": "./dist/cjs/test-base.d.ts",
+        "default": "./dist/cjs/test-base.js"
+      }
     }
   },
   "files": [
@@ -22,7 +35,7 @@
     "snap": "c8 tap",
     "test": "c8 tap",
     "preprepare": "rm -rf dist",
-    "prepare": "tsc -p tsconfig-cjs.json && tsc -p tsconfig.json",
+    "prepare": "tsc -p tsconfig.json && tsc -p tsconfig-esm.json",
     "postprepare": "bash fixup.sh",
     "pretest": "npm run prepare",
     "presnap": "npm run prepare",
@@ -30,13 +43,16 @@
     "preversion": "npm test",
     "postversion": "npm publish",
     "prepublishOnly": "git push origin --follow-tags",
-    "typedoc": "typedoc --tsconfig tsconfig.json ./src/*.ts"
+    "typedoc": "typedoc --tsconfig tsconfig-esm.json ./src/*.ts"
   },
   "dependencies": {
     "@tapjs/processinfo": "^1.0.4",
     "async-hook-domain": "^3.0.2",
-    "minipass": "^3.3.4",
-    "tap-parser": "^12.0.1"
+    "function-loop": "^3.0.0",
+    "minipass": "^4.2.5",
+    "tap-parser": "^12.0.1",
+    "tcompare": "^6.0.0",
+    "trivial-deferred": "^1.1.1"
   },
   "prettier": {
     "semi": false,
@@ -51,13 +67,14 @@
   },
   "devDependencies": {
     "@testing-library/react": "^13.4.0",
+    "@types/diff": "^5.0.2",
     "@types/node": "^18.11.9",
     "@types/stack-utils": "^2.0.1",
     "@types/tap": "^15.0.7",
     "c8": "^7.12.0",
     "prettier": "^2.6.2",
     "react": "^18.2.0",
-    "tap": "^16.3.2",
+    "tap": "^16.3.4",
     "ts-node": "^10.9.1",
     "typedoc": "^0.23.21",
     "typescript": "^4.9.3"

@@ -160,11 +160,15 @@ export class Spawn extends Base {
     return this.callCb()
   }
 
-  timeout(options?: {[k:string]:any}) {
+  timeout(options?: { [k: string]: any }) {
     if (this.proc) {
       this.proc.kill('SIGTERM')
       const t = setTimeout(() => {
-        if (this.proc && !this.options.signal && this.options.exitCode === undefined) {
+        if (
+          this.proc &&
+          !this.options.signal &&
+          this.options.exitCode === undefined
+        ) {
           super.timeout(options)
           this.proc.kill('SIGKILL')
         }

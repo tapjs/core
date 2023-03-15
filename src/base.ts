@@ -14,7 +14,7 @@ Base - streaming, parsing, test status, config loading
 +-- Spawn - run a child proc, consume output as tap stream
 +-- Stdin - consume stdin as tap stream
 +-- Worker - run a worker thread, consume output as tap stream
-+-- PluginBase - generate tap stream, built-in set of assertions
++-- TestBase - generate tap stream, built-in set of assertions
   +-- (builtin plugins...) - add functions for spawn, assertions, snapshot, mock, etc
     +-- (user plugins...) - whatever the config says to load
       +-- Test - the test class exposed to user
@@ -35,10 +35,11 @@ import {
   Result,
   TapError,
 } from 'tap-parser'
+import Deferred from 'trivial-deferred'
 import extraFromError from './extra-from-error'
 
 export class TapWrap extends AsyncResource {
-  readonly test: Base
+  test: Base
   constructor(test: Base) {
     super(`tap.${test.constructor.name}`)
     this.test = test
@@ -80,6 +81,12 @@ export interface BaseOpts {
   todo?: boolean | string
   timeout?: number
 
+  time?: number
+  tapChildBuffer?: string
+  stack?: string
+
+  // basically only set when running in this project
+  stackIncludesTap?: boolean
   parent?: Base
   name?: string
   childId?: number
@@ -88,48 +95,54 @@ export interface BaseOpts {
   debug?: boolean
   parser?: Parser
   buffered?: boolean
+  silent?: boolean
 }
 
-export class Base extends Minipass<string> {
-  public readonly options: BaseOpts
-  readonly indent: string
-  private readonly hook: TapWrap
-  // this actually is set in the ctor, but
+export class Base  {
+  stream: Minipass<string> = new Minipass<string>({ encoding: 'utf8' })
+  readyToProcess: boolean = false
+  options: BaseOpts
+  indent: string
+  hook: TapWrap
+  // this actually is deterministically set in the ctor, but
   // in the hook, so tsc doesn't see it.
-  //@ts-ignore
-  private hookDomain: Domain
-  private timer?: NodeJS.Timeout
+  hookDomain!: Domain
+  timer?: NodeJS.Timeout
 
-  public parser: Parser
-  public readonly debug: (...args: any[]) => void
-  public readonly counts: Counts
-  public readonly lists: Lists
-  public name: string
-  public results?: FinalResults
-  public parent?: Base
+  parser: Parser
+  debug: (...args: any[]) => void
+  counts: Counts
+  lists: Lists
+  name: string
+  results?: FinalResults
+  parent?: Base
 
-  public bail: boolean
-  public strict: boolean
-  public omitVersion: boolean
-  public preserveWhitespace: boolean
+  bail: boolean
+  strict: boolean
+  omitVersion: boolean
+  preserveWhitespace: boolean
 
-  public errors: TapError[]
-  public childId: number
-  public context: any
-  public output: string
-  public buffered: boolean
-  public bailedOut: string | boolean
-  public start: bigint
-  public time: number
-  public hrtime: bigint
+  errors: TapError[]
+  childId: number
+  context: any
+  output: string
+  buffered: boolean
+  bailedOut: string | boolean
+  start: bigint
+  time: number
+  hrtime: bigint
+  silent: boolean
+
+  deferred?: Deferred<FinalResults>
 
   constructor(options: BaseOpts = {}) {
     // all tap streams are sync string minipasses
-    super({ encoding: 'utf8' })
     this.hook = new TapWrap(this)
     this.options = options
     this.counts = new Counts()
     this.lists = new Lists()
+
+    this.silent = !!options.silent
 
     // if it's null or an object, inherit from it.  otherwise, copy it.
     const ctx = options.context
@@ -273,7 +286,7 @@ export class Base extends Minipass<string> {
       e = undefined
     }
 
-    return super.write(c, e as Encoding | undefined, cb)
+    return this.stream.write(c, e as Encoding | undefined, cb)
   }
 
   oncomplete(results: FinalResults) {
@@ -308,21 +321,32 @@ export class Base extends Minipass<string> {
     // XXX old tap had a check here to ensure that buffer and pipes
     // are cleared.  But Minipass "should" do this now for us, so
     // this ought to be fine, but revisit if it causes problems.
-    super.end()
+    this.stream.end()
   }
 
   // extension points for Test, Spawn, etc.
   onbeforeend() {}
   ondone() {}
 
+  once(ev: string, handler: (...a:any[]) => any) {
+    return this.stream.once(ev, handler)
+  }
+  on(ev: string, handler: (...a:any[]) => any) {
+    return this.stream.on(ev, handler)
+  }
   emit(ev: string, ...data: any[]) {
-    const ret = super.emit(ev, ...data)
+    const ret = this.stream.emit(ev, ...data)
     if (ev === 'end') {
       this.ondone()
       this.hook.emitDestroy()
       this.hookDomain.destroy()
     }
     return ret
+  }
+
+  end() {
+    this.stream.end()
+    return this
   }
 
   threw(er: any, extra?: any, proxy?: boolean) {
@@ -373,5 +397,9 @@ export class Base extends Minipass<string> {
     }
 
     return extra
+  }
+
+  passing () {
+    return this.parser.ok
   }
 }

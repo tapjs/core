@@ -1,44 +1,42 @@
 import Minipass from 'minipass'
-import {Base, BaseOpts} from './base'
+import { Base, BaseOpts } from './base'
 
 export interface StdinOpts extends BaseOpts {
   tapStream?: NodeJS.ReadableStream | Minipass
 }
 
-class Stdin extends Base {
-  stream: NodeJS.ReadableStream | Minipass<string | Buffer>
-  constructor (options:StdinOpts) {
+export class Stdin extends Base {
+  inputStream: NodeJS.ReadableStream | Minipass<string | Buffer>
+  constructor(options: StdinOpts) {
     super({
       ...options,
-      name: options.name || '/dev/stdin'
+      name: options.name || '/dev/stdin',
     })
-    this.stream = options.tapStream || process.stdin
-    this.stream.pause()
+    this.inputStream = options.tapStream || process.stdin
+    this.inputStream.pause()
   }
 
-  main (cb:(() => void)) {
-    this.stream.on('error', er => {
+  main(cb: () => void) {
+    this.inputStream.on('error', er => {
       er.tapCaught = 'stdinError'
       this.threw(er)
     })
     if (this.options.timeout) {
       this.setTimeout(this.options.timeout)
     }
-    const s = this.stream as Minipass
+    const s = this.inputStream as Minipass
     s.pipe(this.parser)
     if (this.parent) {
       this.parent.emit('stdin', this)
     }
-    this.stream.resume()
+    this.inputStream.resume()
     this.once('end', cb)
   }
 
-  threw (er:any, extra?: any, proxy?: boolean) {
+  threw(er: any, extra?: any, proxy?: boolean) {
     extra = super.threw(er, extra, proxy)
     Object.assign(this.options, extra)
     this.parser.abort(er.message, extra)
     this.parser.end()
   }
 }
-
-module.exports = Stdin
