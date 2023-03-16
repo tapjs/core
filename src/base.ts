@@ -98,8 +98,10 @@ export interface BaseOpts {
   silent?: boolean
 }
 
-export class Base  {
-  stream: Minipass<string> = new Minipass<string>({ encoding: 'utf8' })
+export class Base {
+  stream: Minipass<string> = new Minipass<string>({
+    encoding: 'utf8',
+  })
   readyToProcess: boolean = false
   options: BaseOpts
   indent: string
@@ -168,9 +170,8 @@ export class Base  {
     this.childId = options.childId || 0
     // do we need this?  couldn't we just call the Minipass
     this.output = ''
-
-    this.indent = this.name =
-      options.name || '(unnamed test)'
+    this.indent = options.indent || ''
+    this.name = options.name || '(unnamed test)'
     this.hook.runInAsyncScope(
       () =>
         (this.hookDomain = new Domain((er, type) => {
@@ -243,7 +244,7 @@ export class Base  {
     }
   }
 
-  timeout(options?: {[k:string]:any}) {
+  timeout(options?: { [k: string]: any }) {
     this.setTimeout(0)
     options = options || {}
     options.expired = options.expired || this.name
@@ -254,6 +255,7 @@ export class Base  {
   }
 
   runMain(cb: () => void) {
+    this.debug('BASE runMain')
     this.start = hrtime.bigint()
     this.hook.runInAsyncScope(this.main, this, cb)
   }
@@ -268,7 +270,7 @@ export class Base  {
   }
 
   online(line: string) {
-    this.debug('LINE %j', line)
+    this.debug('LINE %j', line, [this.name, this.indent])
     return this.write(this.indent + line)
   }
 
@@ -286,7 +288,11 @@ export class Base  {
       e = undefined
     }
 
-    return this.stream.write(c, e as Encoding | undefined, cb)
+    return this.stream.write(
+      c,
+      e as Encoding | undefined,
+      cb
+    )
   }
 
   oncomplete(results: FinalResults) {
@@ -328,10 +334,10 @@ export class Base  {
   onbeforeend() {}
   ondone() {}
 
-  once(ev: string, handler: (...a:any[]) => any) {
+  once(ev: string, handler: (...a: any[]) => any) {
     return this.stream.once(ev, handler)
   }
-  on(ev: string, handler: (...a:any[]) => any) {
+  on(ev: string, handler: (...a: any[]) => any) {
     return this.stream.on(ev, handler)
   }
   emit(ev: string, ...data: any[]) {
@@ -399,7 +405,7 @@ export class Base  {
     return extra
   }
 
-  passing () {
+  passing() {
     return this.parser.ok
   }
 }

@@ -1,10 +1,10 @@
 import loop from 'function-loop'
-import { TestBaseBase } from '../test-base.js'
+import { TestBase } from '../test-base.js'
 
-export const plugin = (Base: typeof TestBaseBase) =>
+export const plugin = (Base: typeof TestBase) =>
   class AfterEach extends Base {
-    onAfterEach: ((t: TestBaseBase) => void)[] = []
-    afterEach(fn: (t: TestBaseBase) => void | Promise<void>) {
+    onAfterEach: ((t: TestBase) => void)[] = []
+    afterEach(fn: (t: TestBase) => void | Promise<void>) {
       this.onAfterEach.push(fn)
     }
     runAfterEach<B extends AfterEach = AfterEach>(
@@ -30,8 +30,11 @@ export const plugin = (Base: typeof TestBaseBase) =>
       }
     }
     runMain(cb: () => void) {
-      return super.runMain(() =>
+      this.debug('AE runMain')
+      return super.runMain(() => {
+        this.debug('AE after runMain, running after each')
         this.runAfterEach(this, cb)
+      }
       )
     }
   }

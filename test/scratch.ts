@@ -1,21 +1,24 @@
 import { FinalResults } from 'tap-parser'
-import { plugin as AfterEach } from '../dist/mjs/plugin/after-each.js'
-import { plugin as BeforeEach } from '../dist/mjs/plugin/before-each.js'
-import { TestBaseBase } from '../dist/mjs/test-base.js'
+import { plugin as AfterEach } from '../dist/cjs/plugin/after-each.js'
+import { plugin as BeforeEach } from '../dist/cjs/plugin/before-each.js'
+import { TestBase } from '../dist/cjs/test-base.js'
 
 import { TestBaseOpts } from '../dist/cjs/test-base.js'
-const opts: TestBaseOpts = {}
+const opts: TestBaseOpts = {
+  debug: /\btap\b/.test(process.env.NODE_DEBUG || ''),
+  name: 'TAP',
+}
 
-const p0 = AfterEach(TestBaseBase)
-class P0 extends AfterEach(TestBaseBase) {}
+const p0 = AfterEach(TestBase)
+class P0 extends AfterEach(TestBase) {}
 //@ts-ignore
 const p1 = BeforeEach(p0)
-class P1 extends BeforeEach(TestBaseBase) {}
+class P1 extends BeforeEach(TestBase) {}
 
-interface Test extends TestBaseBase, P0, P1 {}
+interface Test extends TestBase, P0, P1 {}
 class Test extends p1 {
   // this has to be overridden to provide a default Class type
-  test<T extends TestBaseBase = Test>(
+  test<T extends TestBase = Test>(
     name: string,
     extra: { [k: string]: any },
     cb: (t: T) => any
@@ -27,23 +30,33 @@ class Test extends p1 {
   }
 }
 
-const p = new Test(opts) as Test
-p.beforeEach(_ => {
-  console.log('a')
+const t = new Test(opts)
+t.stream.pipe(process.stdout)
+t.runMain(() => {})
+
+t.beforeEach(() => {
+  console.log('first beforeEach')
 })
-p.beforeEach(_ => {
-  console.log('b')
+t.beforeEach(() => {
+  console.log('second beforeEach')
 })
-const t = new Test({
-  ...opts,
-  parent: p,
+t.afterEach(() => {
+  console.log('parent aftereach')
 })
 
 t.test('hello', {}, t => {
   t.pass('this is fine')
-  t.beforeEach(() => console.log('child beforeeach'))
+  t.beforeEach(() => {
+    console.log('child beforeeach')
+  })
+  t.afterEach(() => {
+    console.log('child aftereach')
+  })
+  t.test('hello child', {}, t => {
+    t.pass('also fine')
+    t.end()
+  })
+  t.end()
 })
-t.stream.pipe(process.stdout)
-t.runMain(() => {
-  console.log('done')
-})
+
+t.end()

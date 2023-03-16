@@ -88,9 +88,10 @@ export type QueueEntry =
  * All other features are added with plugins.
  */
 
-export class TestBaseBase extends Base {
+export class TestBase extends Base {
   // NB: generated pluginified Test class needs to declare over this
   declare parent?: TestBase
+  promise?: Promise<any>
   jobs: number
   noparallel: boolean = false
   occupied: null | Waiter | Base = null
@@ -134,11 +135,11 @@ export class TestBaseBase extends Base {
     }
 
     if (options.cb) {
-      this.setCB(options.cb)
+      this.#setCB(options.cb)
     }
   }
 
-  setCB<T extends TestBase>(this: T, cb: (t: T) => any) {
+  #setCB<T extends TestBase>(this: T, cb: (t: T) => any) {
     this.cb = (...args: any[]) =>
       this.hook.runInAsyncScope(cb, this, ...args)
   }
@@ -530,9 +531,11 @@ export class TestBaseBase extends Base {
     while (!this.occupied) {
       const p = this.queue.shift()
       if (!p) {
+        this.debug('> end of queue')
         break
       }
       if (p instanceof Base) {
+        this.debug('> subtest in queue', p.name)
         this.processSubtest(p)
       } else if (p === EOF) {
         this.debug(' > EOF', this.name)
@@ -659,7 +662,7 @@ export class TestBaseBase extends Base {
     p.ondone = p.constructor.prototype.ondone
     p.results =
       p.results || new FinalResults(true, p.parser)
-    this.debug('onindentedend', p)
+    this.debug('onindentedend', this.name, p.name)
     this.noparallel = false
     const sti = this.subtests.indexOf(p)
     if (sti !== -1) this.subtests.splice(sti, 1)
@@ -682,7 +685,6 @@ export class TestBaseBase extends Base {
     )
     p.options.stack = ''
 
-    this.queue.unshift(['emitSubTeardown', p])
     this.printResult(p.passing(), p.name, p.options, true)
 
     this.debug(
@@ -695,6 +697,66 @@ export class TestBaseBase extends Base {
     this.process()
   }
 
+  online(line: string) {
+    this.debug('TEST BASE LINE', [
+      line,
+      this.name,
+      this.indent,
+    ])
+    return super.online(line)
+  }
+
+  main(cb: () => void) {
+    if (typeof this.options.timeout === 'number') {
+      this.setTimeout(this.options.timeout)
+    }
+    this.debug('MAIN pre', this)
+
+    const end = () => {
+      this.debug(' > implicit end for promise')
+      this._end(IMPLICIT)
+      done()
+    }
+
+    const done = (er?: Error) => {
+      if (er) this.threw(er)
+
+      if (this.results || this.bailedOut) cb()
+      else this.ondone = () => cb()
+    }
+
+    // This bit of overly clever line-noise wraps the call to user-code
+    // in a try-catch. We can't rely on the domain for this yet, because
+    // the 'end' event can trigger a throw after the domain is unhooked,
+    // but before this is no longer the official "active test"
+    const ret = (() => {
+      if (!this.cb) return
+      try {
+        return this.cb(this)
+      } catch (er: any) {
+        if (!er || typeof er !== 'object') {
+          er = { error: er }
+        }
+        er.tapCaught = 'testFunctionThrow'
+        this.threw(er)
+      }
+    })()
+
+    if (ret && ret.then) {
+      this.promise = ret
+      ret.tapAbortPromise = done
+      ret.then(end, (er: any) => {
+        if (!er || typeof er !== 'object') {
+          er = { error: er }
+        }
+        er.tapCaught = 'returnedPromiseRejection'
+        done(er)
+      })
+    } else done()
+
+    this.debug('MAIN post', this)
+  }
+
   processSubtest<T extends Base>(p: T) {
     this.debug(' > subtest')
     this.occupied = p
@@ -703,14 +765,17 @@ export class TestBaseBase extends Base {
       this.debug(' > subtest indented')
       p.stream.pipe(this.parser, { end: false })
       this.writeSubComment(p)
-      p.runMain(() => this.onindentedend(p))
+      this.debug('calling runMain', p.runMain.toString())
+      p.runMain(() => {
+        this.debug('in runMain', p.runMain.toString())
+        this.onindentedend(p)
+      })
     } else if (p.readyToProcess) {
       this.emit('subtestProcess', p)
       this.debug(' > subtest buffered, finished')
       // finished!  do the thing!
       this.occupied = null
       if (!p.passing() || !p.silent) {
-        this.queue.unshift(['emitSubTeardown', p])
         this.printResult(
           p.passing(),
           p.name,
@@ -849,7 +914,7 @@ export class TestBaseBase extends Base {
   test<T extends TestBase>(
     name: string,
     extra: { [k: string]: any },
-    cb: ((t: T) => any)
+    cb: (t: T) => any
   ): Promise<FinalResults | null> {
     extra = parseTestArgs(name, extra, cb)
     return this.sub(
@@ -967,4 +1032,3 @@ export class TestBaseBase extends Base {
 
   // end flow control methods
 }
-export class TestBase extends TestBaseBase {}
