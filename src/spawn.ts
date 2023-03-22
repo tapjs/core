@@ -124,7 +124,7 @@ export class Spawn extends Base {
       }
       proc.stdout.pipe(this.parser)
       proc.on('close', (code, signal) =>
-        this.onprocclose(code, signal)
+        this.#onprocclose(code, signal)
       )
       proc.on('error', er => this.threw(er))
       this.emit('process', proc)
@@ -134,7 +134,7 @@ export class Spawn extends Base {
     })
   }
 
-  onprocclose(code: number | null, signal: string | null) {
+  #onprocclose(code: number | null, signal: string | null) {
     this.debug('SPAWN close %j %s', code, signal)
     this.options.exitCode = code
     this.options.signal = signal

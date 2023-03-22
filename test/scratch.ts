@@ -11,8 +11,9 @@ const opts: TestBaseOpts = {
 
 const p0 = AfterEach(TestBase)
 class P0 extends AfterEach(TestBase) {}
-//@ts-ignore
-const p1 = BeforeEach(p0)
+// TS injects a bunch of "__1#__#blah" properties into the types
+// when 
+const p1 = BeforeEach(p0 as unknown as typeof TestBase)
 class P1 extends BeforeEach(TestBase) {}
 
 interface Test extends TestBase, P0, P1 {}
@@ -31,6 +32,7 @@ class Test extends p1 {
 }
 
 const t = new Test(opts)
+
 t.stream.pipe(process.stdout)
 t.runMain(() => {})
 
