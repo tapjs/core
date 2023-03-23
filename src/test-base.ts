@@ -11,9 +11,6 @@ import { FinalResults } from 'tap-parser'
 import Deferred from 'trivial-deferred'
 import { Base, BaseOpts } from './base.js'
 import { esc } from './esc.js'
-import parseTestArgs, {
-  TestArgs,
-} from './parse-test-args.js'
 import stack from './stack.js'
 import { TestPoint } from './test-point.js'
 import { Waiter } from './waiter.js'
@@ -419,7 +416,7 @@ export class TestBase extends Base {
     this.#process()
   }
 
-  end() {
+  end(): this {
     this.#end()
     return super.end()
   }
@@ -849,81 +846,6 @@ export class TestBase extends Base {
     stream.resume()
   }
 
-  test<T extends TestBase>(
-    name: string,
-    extra: { [k: string]: any },
-    cb?: (t: T) => any
-  ): Promise<FinalResults | null>
-  test<T extends TestBase>(
-    name: string,
-    cb?: (t: T) => any
-  ): Promise<FinalResults | null>
-  test<T extends TestBase>(
-    extra: { [k: string]: any },
-    cb?: (t: T) => any
-  ): Promise<FinalResults | null>
-  test<T extends TestBase>(
-    cb?: (t: T) => any
-  ): Promise<FinalResults | null>
-  test<T extends TestBase>(
-    ...args: TestArgs<T>
-  ): Promise<FinalResults | null> {
-    const extra = parseTestArgs(...args)
-    const Class = this.constructor as ClassOf<T>
-    extra.todo = true
-    return this.sub(Class, extra, this.test)
-  }
-
-  todo<T extends TestBase>(
-    name: string,
-    extra: { [k: string]: any },
-    cb?: (t: T) => any
-  ): Promise<FinalResults | null>
-  todo<T extends TestBase>(
-    name: string,
-    cb?: (t: T) => any
-  ): Promise<FinalResults | null>
-  todo<T extends TestBase>(
-    extra: { [k: string]: any },
-    cb?: (t: T) => any
-  ): Promise<FinalResults | null>
-  todo<T extends TestBase>(
-    cb?: (t: T) => any
-  ): Promise<FinalResults | null>
-  todo<T extends TestBase>(
-    ...args: TestArgs<T>
-  ): Promise<FinalResults | null> {
-    const extra = parseTestArgs(...args)
-    const Class = this.constructor as ClassOf<T>
-    extra.todo = true
-    return this.sub(Class, extra, this.todo)
-  }
-
-  skip<T extends TestBase>(
-    name: string,
-    extra: { [k: string]: any },
-    cb?: (t: T) => any
-  ): Promise<FinalResults | null>
-  skip<T extends TestBase>(
-    name: string,
-    cb?: (t: T) => any
-  ): Promise<FinalResults | null>
-  skip<T extends TestBase>(
-    extra: { [k: string]: any },
-    cb?: (t: T) => any
-  ): Promise<FinalResults | null>
-  skip<T extends TestBase>(
-    cb?: (t: T) => any
-  ): Promise<FinalResults | null>
-  skip<T extends TestBase>(
-    ...args: TestArgs<T>
-  ): Promise<FinalResults | null> {
-    const extra = parseTestArgs(...args)
-    const Class = this.constructor as ClassOf<T>
-    extra.skip = true
-    return this.sub(Class, extra, this.skip)
-  }
-
   /**
    * Mount a subtest, using this Test object as a harness.
    * Exposed mainly so that it can be used by builtin plugins.
@@ -947,7 +869,7 @@ export class TestBase extends Base {
     }
 
     extra.childId = this.#nextChildId++
-    if (this.#shouldSkipChild(extra)) {
+    if (this.shouldSkipChild(extra)) {
       this.pass(extra.name, extra)
       return Promise.resolve(null)
     }
@@ -982,7 +904,7 @@ export class TestBase extends Base {
    * Return true if the child test represented by the options object
    * should be skipped.  Extended by the grep/only filtering plugins.
    */
-  #shouldSkipChild(extra: { [k: string]: any }) {
+  shouldSkipChild(extra: { [k: string]: any }) {
     return !!(extra.skip || extra.todo)
   }
 

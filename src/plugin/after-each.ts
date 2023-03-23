@@ -1,40 +1,44 @@
 import loop from 'function-loop'
-import { TestBase } from '../test-base.js'
+import { TapPlugin, TestBase } from '../test-base.js'
+import type { Test } from '../test-built.js'
 
-export const plugin = (Base: typeof TestBase) =>
-  class AfterEach extends Base {
-    onAfterEach: ((t: TestBase) => void)[] = []
-    afterEach(fn: (t: TestBase) => void | Promise<void>) {
-      this.onAfterEach.push(fn)
-    }
-    runAfterEach<B extends AfterEach = AfterEach>(
-      who: B,
-      cb: () => void
-    ) {
-      // run all the afterEach methods from the parent
-      const onerr = (er: any) => {
-        who.threw(er)
-        cb()
-      }
-      const p = () => {
-        if (this.parent) {
-          ;(this.parent as AfterEach).runAfterEach(who, cb)
-        } else {
-          cb()
-        }
-      }
-      if (who !== (this as AfterEach)) {
-        loop(this.onAfterEach, p, onerr)
-      } else {
-        p()
-      }
-    }
-    runMain(cb: () => void) {
-      this.debug('AE runMain')
-      return super.runMain(() => {
-        this.debug('AE after runMain, running after each')
-        this.runAfterEach(this, cb)
-      }
-      )
+class AfterEach {
+  static #refs = new Map<TestBase, AfterEach>()
+  #t: TestBase
+  constructor(t: TestBase) {
+    this.#t = t
+    AfterEach.#refs.set(t, this)
+    const runMain = t.runMain
+    t.runMain = (cb: () => void) => {
+      runMain.call(t, () => this.#runAfterEach(this.#t, cb))
     }
   }
+  #onAfterEach: ((t: Test) => void)[] = []
+  afterEach(fn: (t: Test) => void | Promise<void>) {
+    this.#onAfterEach.push(fn)
+  }
+  #runAfterEach(who: TestBase, cb: () => void) {
+    // run all the afterEach methods from the parent
+    const onerr = (er: any) => {
+      who.threw(er)
+      cb()
+    }
+    const p = this.#t.parent
+    const pae = !!p && AfterEach.#refs.get(p)
+    const run = () => {
+      if (pae) {
+        pae.#runAfterEach(who, cb)
+      } else {
+        cb()
+      }
+    }
+    if (who !== this.#t) {
+      loop(this.#onAfterEach, run, onerr)
+    } else {
+      run()
+    }
+  }
+}
+
+const plugin: TapPlugin = (t: TestBase) => new AfterEach(t)
+export default plugin

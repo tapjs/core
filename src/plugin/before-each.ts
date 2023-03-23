@@ -1,6 +1,7 @@
 /// <reference types="node" />
 import loop from 'function-loop'
 import { TapPlugin, TestBase } from '../test-base.js'
+import type { Test } from '../test-built.js'
 
 class BeforeEach {
   static #refs = new Map<TestBase, BeforeEach>()
@@ -40,3 +41,4 @@ class BeforeEach {
 }
 
 const plugin: TapPlugin = (t: TestBase) => new BeforeEach(t)
+export default plugin
