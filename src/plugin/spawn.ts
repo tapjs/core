@@ -63,6 +63,6 @@ class SpawnPlugin {
   }
 }
 
-const plugin: TapPlugin = (t: TestBase) =>
+const plugin: TapPlugin<SpawnPlugin> = (t: TestBase) =>
   new SpawnPlugin(t)
 export default plugin

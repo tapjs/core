@@ -24,9 +24,10 @@ export interface ClassOf<T> {
   new (): T
 }
 
-export type TapPlugin<O extends TestBaseOpts | any = any> =
-  | ((t: TestBase, opts: O) => Object)
-  | ((t: TestBase) => Object)
+export type TapPlugin<
+  B extends Object,
+  O extends TestBaseOpts | any = any
+> = ((t: TestBase, opts: O) => B) | ((t: TestBase) => B)
 
 export interface TestBaseOpts extends BaseOpts {
   /**

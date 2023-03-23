@@ -40,5 +40,5 @@ class AfterEach {
   }
 }
 
-const plugin: TapPlugin = (t: TestBase) => new AfterEach(t)
+const plugin: TapPlugin<AfterEach> = (t: TestBase) => new AfterEach(t)
 export default plugin

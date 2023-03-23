@@ -1,6 +1,6 @@
 /// <reference types="node" />
 import loop from 'function-loop'
-import { TapPlugin, TestBase } from '../test-base.js'
+import { TestBase } from '../test-base.js'
 import type { Test } from '../test-built.js'
 
 class BeforeEach {
@@ -40,5 +40,5 @@ class BeforeEach {
   }
 }
 
-const plugin: TapPlugin = (t: TestBase) => new BeforeEach(t)
+const plugin = (t: TestBase) => new BeforeEach(t)
 export default plugin
